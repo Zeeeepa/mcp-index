@@ -22,7 +22,7 @@ from mcp.types import (
 
 logger = logging.getLogger(__name__)
 
-def setup_mcp_server(config, indexer, search_engine, formatter):
+def setup_mcp_server(config, indexer, search_engine, formatter, agent_manager=None):
     """
     设置MCP服务器
     
@@ -31,6 +31,7 @@ def setup_mcp_server(config, indexer, search_engine, formatter):
         indexer: 代码索引器
         search_engine: 搜索引擎
         formatter: MCP响应格式化器
+        agent_manager: 代理管理器（可选）
         
     Returns:
         MCP服务器实例
@@ -56,7 +57,7 @@ def setup_mcp_server(config, indexer, search_engine, formatter):
     # 设置工具列表请求处理程序
     @server.list_tools()
     async def list_tools():
-        return [
+        tools = [
             Tool(
                 name="identify_project",
                 description="识别代码项目，返回项目ID和状态",
@@ -205,6 +206,44 @@ def setup_mcp_server(config, indexer, search_engine, formatter):
                 }
             )
         ]
+        
+        # 如果代理管理器可用，添加多代理分析工具
+        if agent_manager:
+            tools.append(
+                Tool(
+                    name="multi_agent_analyze",
+                    description="使用多代理系统分析代码",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "file_path": {
+                                "type": "string",
+                                "description": "要分析的文件路径"
+                            }
+                        },
+                        "required": ["file_path"]
+                    }
+                )
+            )
+            
+            tools.append(
+                Tool(
+                    name="agent_search",
+                    description="使用搜索代理搜索代码",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "搜索查询"
+                            }
+                        },
+                        "required": ["query"]
+                    }
+                )
+            )
+        
+        return tools
     
     # 设置工具调用请求处理程序
     @server.call_tool()
@@ -499,6 +538,60 @@ def setup_mcp_server(config, indexer, search_engine, formatter):
                     TextContent(
                         type="text",
                         text=f"分析项目依赖关系失败: {str(e)}"
+                    )
+                ]
+        
+        # 多代理分析工具
+        elif name == "multi_agent_analyze" and agent_manager:
+            if "file_path" not in args:
+                return [
+                    TextContent(
+                        type="text",
+                        text="错误：缺少文件路径参数"
+                    )
+                ]
+            
+            try:
+                analysis_results = agent_manager.analyze_code(args["file_path"])
+                
+                return [
+                    TextContent(
+                        type="text",
+                        text=json.dumps(analysis_results, indent=2, ensure_ascii=False)
+                    )
+                ]
+            except Exception as e:
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"多代理分析失败: {str(e)}"
+                    )
+                ]
+        
+        # 代理搜索工具
+        elif name == "agent_search" and agent_manager:
+            if "query" not in args:
+                return [
+                    TextContent(
+                        type="text",
+                        text="错误：缺少查询参数"
+                    )
+                ]
+            
+            try:
+                search_results = agent_manager.search_code(args["query"])
+                
+                return [
+                    TextContent(
+                        type="text",
+                        text=json.dumps(search_results, indent=2, ensure_ascii=False)
+                    )
+                ]
+            except Exception as e:
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"代理搜索失败: {str(e)}"
                     )
                 ]
         
