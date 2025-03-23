@@ -28,8 +28,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from mcp.server.stdio import stdio_server
 
 from mcp_code_indexer.config import Config
-from mcp_code_indexer.indexer import CodeIndexer
-from mcp_code_indexer.search_engine import SearchEngine
+from mcp_code_indexer.factory import create_all_components
 from mcp_code_indexer.mcp_formatter import McpFormatter
 
 # 使用绝对导入，避免作为脚本直接运行时的问题
@@ -103,16 +102,17 @@ def main():
         # 加载配置
         config = Config(args.config)
         
-        # 初始化组件
-        indexer = CodeIndexer(config)
-        search_engine = SearchEngine(config, indexer)
+        # 使用工厂创建组件
+        components = create_all_components(config)
+        indexer = components["indexer"]
+        search_engine = components["search_engine"]
+        agent_manager = components["agent_manager"]
+        
+        # 创建格式化器
         formatter = McpFormatter()
         
-        # 将配置保存到应用配置中（用于LLM控制器创建）
-        app.config['mcp_config'] = config
-        
         # 创建MCP服务器
-        server = setup_mcp_server(config, indexer, search_engine, formatter)
+        server = setup_mcp_server(config, indexer, search_engine, formatter, agent_manager)
         
         # 处理退出信号
         def handle_exit(signum, frame):

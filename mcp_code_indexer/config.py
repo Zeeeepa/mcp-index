@@ -34,10 +34,23 @@ class Config:
             "chunk_overlap": 200,
             "use_code_embeddings": True,
             "code_embedding_model": "jinaai/jina-embeddings-v2-base-code",
+            "use_graph_db": False
         },
         "storage": {
             "vector_db_path": "./vector_db",
             "project_data_path": "./project_data"
+        },
+        "graph_db": {
+            "uri": "bolt://localhost:7687",
+            "user": "neo4j",
+            "password": "password",
+            "database": "neo4j",
+            "task_id": "mcp_indexer",
+            "use_lock": True
+        },
+        "agents": {
+            "enabled": False,
+            "roles": ["code_analyzer", "search_agent", "quality_analyzer", "dependency_analyzer"]
         },
         "exclude_patterns": [
             "node_modules/",
