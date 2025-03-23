@@ -20,6 +20,11 @@ from .embedding_utils import (
     batch_encode_texts
 )
 
+from .json_utils import (
+    convert_sets_to_lists,
+    safe_json_serialize
+)
+
 __all__ = [
     "is_binary_file",
     "get_file_language",
@@ -30,5 +35,7 @@ __all__ = [
     "create_embeddings",
     "cosine_similarity",
     "normalize_embeddings",
-    "batch_encode_texts"
+    "batch_encode_texts",
+    "convert_sets_to_lists",
+    "safe_json_serialize"
 ]
