@@ -7,6 +7,7 @@ import os
 import logging
 from typing import Dict, Any, List, Optional
 import json
+import time
 
 from mcp.server.lowlevel import Server
 from mcp.types import (
@@ -20,9 +21,11 @@ from mcp.types import (
     ResourceTemplate
 )
 
+from mcp_code_indexer.utils.json_utils import convert_sets_to_lists
+
 logger = logging.getLogger(__name__)
 
-def setup_mcp_server(config, indexer, search_engine, formatter, agent_manager=None):
+def setup_mcp_server(config, indexer, search_engine, agent_manager=None):
     """
     设置MCP服务器
     
@@ -30,7 +33,6 @@ def setup_mcp_server(config, indexer, search_engine, formatter, agent_manager=No
         config: 配置对象
         indexer: 代码索引器
         search_engine: 搜索引擎
-        formatter: MCP响应格式化器
         agent_manager: 代理管理器（可选）
         
     Returns:
@@ -281,7 +283,6 @@ def setup_mcp_server(config, indexer, search_engine, formatter, agent_manager=No
             project_id = indexer.index_project(args["project_path"])
             
             if wait:
-                import time
                 max_wait = 300  # Wait up to 5 minutes
                 start_time = time.time()
                 while time.time() - start_time < max_wait:
@@ -514,17 +515,7 @@ def setup_mcp_server(config, indexer, search_engine, formatter, agent_manager=No
             try:
                 dependencies = indexer.optimizer.analyze_project_dependencies(args["project_path"])
                 
-                # 将set类型转换为list，以便JSON序列化
-                def convert_sets_to_lists(obj):
-                    if isinstance(obj, dict):
-                        return {k: convert_sets_to_lists(v) for k, v in obj.items()}
-                    elif isinstance(obj, set):
-                        return list(obj)
-                    elif isinstance(obj, list):
-                        return [convert_sets_to_lists(item) for item in obj]
-                    else:
-                        return obj
-                
+                # Convert sets to lists for JSON serialization
                 serializable_dependencies = convert_sets_to_lists(dependencies)
                 
                 return [
