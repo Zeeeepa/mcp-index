@@ -7,12 +7,16 @@ import os
 import logging
 from typing import Dict, List, Any, Optional, Tuple
 import json
+import re
+import threading
+import time
 
 from .environment.environment import Environment
 from .config import Config
 from .indexer import CodeIndexer
 from .search_engine import SearchEngine
-from modelscope_agent.schemas import Message
+from .utils.json_utils import convert_sets_to_lists
+from .external.modelscope import Message
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +48,7 @@ class Agent:
             Response message or None
         """
         raise NotImplementedError("Subclasses must implement process_messages")
+
 
 class CodeAnalyzerAgent(Agent):
     """Agent for analyzing code structure"""
@@ -79,7 +84,6 @@ class CodeAnalyzerAgent(Agent):
             if "analyze_file" in content:
                 try:
                     # Extract file path from message
-                    import re
                     file_path_match = re.search(r"analyze_file:\s*([^\s]+)", content)
                     if file_path_match:
                         file_path = file_path_match.group(1)
@@ -124,6 +128,7 @@ class CodeAnalyzerAgent(Agent):
         
         return None
 
+
 class SearchAgent(Agent):
     """Agent for searching code"""
     
@@ -158,7 +163,6 @@ class SearchAgent(Agent):
             if "search:" in content:
                 try:
                     # Extract query from message
-                    import re
                     query_match = re.search(r"search:\s*(.+)", content)
                     if query_match:
                         query = query_match.group(1)
@@ -201,6 +205,7 @@ class SearchAgent(Agent):
         
         return None
 
+
 class QualityAnalyzerAgent(Agent):
     """Agent for analyzing code quality"""
     
@@ -235,7 +240,6 @@ class QualityAnalyzerAgent(Agent):
             if "analyze_quality:" in content:
                 try:
                     # Extract file path from message
-                    import re
                     file_path_match = re.search(r"analyze_quality:\s*([^\s]+)", content)
                     if file_path_match:
                         file_path = file_path_match.group(1)
@@ -273,6 +277,7 @@ class QualityAnalyzerAgent(Agent):
         
         return None
 
+
 class DependencyAnalyzerAgent(Agent):
     """Agent for analyzing code dependencies"""
     
@@ -307,7 +312,6 @@ class DependencyAnalyzerAgent(Agent):
             if "analyze_dependencies:" in content:
                 try:
                     # Extract project path from message
-                    import re
                     path_match = re.search(r"analyze_dependencies:\s*([^\s]+)", content)
                     if path_match:
                         project_path = path_match.group(1)
@@ -316,16 +320,6 @@ class DependencyAnalyzerAgent(Agent):
                         dependencies = self.indexer.optimizer.analyze_project_dependencies(project_path)
                         
                         # Convert sets to lists for JSON serialization
-                        def convert_sets_to_lists(obj):
-                            if isinstance(obj, dict):
-                                return {k: convert_sets_to_lists(v) for k, v in obj.items()}
-                            elif isinstance(obj, set):
-                                return list(obj)
-                            elif isinstance(obj, list):
-                                return [convert_sets_to_lists(item) for item in obj]
-                            else:
-                                return obj
-                        
                         serializable_dependencies = convert_sets_to_lists(dependencies)
                         
                         # Create response message
@@ -345,6 +339,7 @@ class DependencyAnalyzerAgent(Agent):
                     )
         
         return None
+
 
 class AgentManager:
     """
@@ -384,10 +379,8 @@ class AgentManager:
         # Start agent processing threads
         self._start_agent_threads()
     
-    def _start_agent_threads(self):
+    def _start_agent_threads(self) -> None:
         """Start agent processing threads"""
-        import threading
-        
         for role, agent in self.agents.items():
             thread = threading.Thread(
                 target=self._agent_loop,
@@ -396,7 +389,7 @@ class AgentManager:
             )
             thread.start()
     
-    def _agent_loop(self, agent: Agent):
+    def _agent_loop(self, agent: Agent) -> None:
         """
         Agent processing loop
         
@@ -420,7 +413,6 @@ class AgentManager:
                         self.environment.store_message_from_role(agent.role, response)
                 
                 # Sleep to avoid busy waiting
-                import time
                 time.sleep(0.1)
             except Exception as e:
                 logger.error(f"Error in agent loop for {agent.role}: {str(e)}")
@@ -456,7 +448,6 @@ class AgentManager:
         self.environment.store_message_from_role("user", quality_analysis_request)
         
         # Wait for responses
-        import time
         start_time = time.time()
         timeout = 30  # 30 seconds timeout
         
@@ -528,7 +519,6 @@ class AgentManager:
         self.environment.store_message_from_role("user", dependency_request)
         
         # Wait for response
-        import time
         start_time = time.time()
         timeout = 60  # 60 seconds timeout
         
@@ -585,7 +575,6 @@ class AgentManager:
         self.environment.store_message_from_role("user", search_request)
         
         # Wait for response
-        import time
         start_time = time.time()
         timeout = 30  # 30 seconds timeout
         

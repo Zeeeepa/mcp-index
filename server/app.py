@@ -29,7 +29,6 @@ from mcp.server.stdio import stdio_server
 
 from mcp_code_indexer.config import Config
 from mcp_code_indexer.factory import create_all_components
-from mcp_code_indexer.mcp_formatter import McpFormatter
 
 # 使用绝对导入，避免作为脚本直接运行时的问题
 from server.mcp_server import setup_mcp_server
@@ -108,11 +107,8 @@ def main():
         search_engine = components["search_engine"]
         agent_manager = components["agent_manager"]
         
-        # 创建格式化器
-        formatter = McpFormatter()
-        
         # 创建MCP服务器
-        server = setup_mcp_server(config, indexer, search_engine, formatter, agent_manager)
+        server = setup_mcp_server(config, indexer, search_engine, agent_manager)
         
         # 处理退出信号
         def handle_exit(signum, frame):
