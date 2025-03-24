@@ -1,7 +1,7 @@
 import codecs
 
 import sourcetraildb as srctrl
-from my_graph_db import GraphDatabaseHandler
+from mcp_code_indexer.environment.graph_database.graph_database import GraphDatabaseHandler
 
 
 class SymbolRegistry:
@@ -25,15 +25,15 @@ class SymbolReferenceRegistry:
 
     def record_reference(self, context_symbol_id, referenced_symbol_id,
                          reference_kind):
-        # 生成一个关系键值，用于在字典中查找
+        # Generate a relationship key for dictionary lookup
         reference_key = (context_symbol_id, referenced_symbol_id,
                          reference_kind)
 
-        # 检查是否存在重复的关系
+        # Check if the relationship already exists
         if reference_key in self.references:
             return self.references[reference_key]
 
-        # 如果不存在重复关系，则创建新的关系ID
+        # If the relationship doesn't exist, create a new relationship ID
         reference_id = self.next_ref_id
         self.references[reference_key] = reference_id
         self.next_ref_id += 1
@@ -85,7 +85,7 @@ class AstVisitorClient:
             start_line = 1
         extracted_lines = self.this_source_code_lines[start_line - 1:end_line]
 
-        # 去除指定数量的缩进
+        # Remove specified amount of indentation
         if is_indent:
             extracted_lines = self.this_source_code_lines[start_line
                                                           - 1:end_line]
@@ -119,7 +119,7 @@ class AstVisitorClient:
             extracted_lines = source_code_lines[start_line - 1:end_line]
         except Exception:
             return ''
-        # 去除指定数量的缩进
+        # Remove specified amount of indentation
         if is_indent:
             first_line_indent = len(extracted_lines[0]) - len(
                 extracted_lines[0].lstrip())
@@ -197,7 +197,7 @@ class AstVisitorClient:
         return 0
 
     def recordSymbolDefinitionKind(self, symbolId, symbolDefinitionKind):
-        # definition 的类型
+        # Definition type
         pass
 
     def recordSymbolKind(self, symbolId, symbolKind):
@@ -254,9 +254,9 @@ class AstVisitorClient:
                     if kind == 'FUNCTION':
                         kind = 'METHOD'
                         self.symbol_data[full_name]['kind'] = kind
-            # 创建节点 ------------------------------------------------------------------
+            # Create node ------------------------------------------------------------------
             self.graphDB.add_node(label=kind, full_name=full_name, parms=data)
-            # 边的关系 ------------------------------------------------------------------
+            # Create relationships ------------------------------------------------------------------
             if kind in ['CLASS', 'FUNCTION', 'GLOBAL_VARIABLE']:
                 module_name = self.get_module_name(full_name)
                 self.graphDB.add_edge(
