@@ -3,7 +3,7 @@ import os
 import pathlib
 from collections import defaultdict
 
-from modelscope_agent.environment.graph_database import GraphDatabaseHandler
+from mcp_code_indexer.environment.graph_database.internal_graph_database import GraphDatabaseHandler
 
 from .ast_utils import (get_dotted_name, get_module_name, get_py_files,
                         method_decorator, module_name_to_path)

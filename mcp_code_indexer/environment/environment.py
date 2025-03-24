@@ -1,9 +1,9 @@
 import queue
 from typing import Dict, List, Union
 
-from modelscope_agent.constants import DEFAULT_SEND_TO, USER_REQUIREMENT
-from modelscope_agent.schemas import Message
-from modelscope_agent.utils.logger import agent_logger as logger
+from mcp_code_indexer.environment.constants import DEFAULT_SEND_TO, USER_REQUIREMENT
+from mcp_code_indexer.environment.schemas import Message
+from mcp_code_indexer.environment.logger import agent_logger as logger
 
 
 class Environment:
