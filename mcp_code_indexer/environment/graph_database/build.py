@@ -3,8 +3,8 @@ import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from mcp_code_indexer.environment.graph_database.internal_graph_database import GraphDatabaseHandler
-from mcp_code_indexer.environment.graph_database.ast_search.internal_ast_manager import AstManager
+from mcp_code_indexer.environment.graph_database.graph_database import GraphDatabaseHandler
+from mcp_code_indexer.environment.graph_database.ast_search.ast_manage import AstManager
 
 
 def get_py_files(directory):
@@ -59,7 +59,6 @@ def run_script_in_env(env_path,
                       script_path,
                       working_directory,
                       script_args=None):
-    # python_executable = os.path.join(env_path, "bin", "python")
     if not os.path.exists(env_path):
         raise FileNotFoundError(
             'Python executable not found in the environment: {}'.format(
@@ -68,7 +67,6 @@ def run_script_in_env(env_path,
     command = [env_path, script_path]
     if script_args:
         command.extend(script_args)
-    # print(' '.join(command))
 
     try:
         result = subprocess.run(
@@ -95,6 +93,20 @@ def build_graph_database(graph_db: GraphDatabaseHandler,
                          max_workers=None,
                          env_path_dict=None,
                          update_progress_bar=None):
+    """Build a graph database for a repository.
+    
+    Args:
+        graph_db (GraphDatabaseHandler): The graph database handler.
+        repo_path (str): The path to the repository.
+        task_id (str): The ID of the task.
+        is_clear (bool, optional): Whether to clear existing data. Defaults to True.
+        max_workers (int, optional): Maximum number of worker threads. Defaults to None.
+        env_path_dict (dict, optional): Dictionary with environment paths. Defaults to None.
+        update_progress_bar (callable, optional): Function to update progress. Defaults to None.
+        
+    Returns:
+        None or str: None if successful, error message if failed.
+    """
     file_list = get_py_files(repo_path)
     root_path = repo_path
 
@@ -123,20 +135,19 @@ def build_graph_database(graph_db: GraphDatabaseHandler,
                 msg = '`{}` generated an exception: `{}`'.format(
                     file_path, exc)
                 print(msg)
-                # 在捕获到异常后，停止提交新任务，并尝试取消所有未完成的任务
+                # Stop submitting new tasks and try to cancel all unfinished tasks
                 executor.shutdown(wait=False, cancel_futures=True)
                 return msg
             finally:
-                # 每完成一个任务，更新进度条
+                # Update progress bar after each task
                 if update_progress_bar:
                     update_progress_bar((i + 1) / total_files)
-                # print((i+1) / total_files)
-    # ast, class inheritance
+    
+    # Process AST and class inheritance
     ast_manage = AstManager(repo_path, task_id, graph_db)
     ast_manage.run()
 
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f'✍️ Shallow indexing ({int(elapsed_time)} s)')
-    # logger.info(f"✍️ Shallow indexing ({int(elapsed_time)} s)")
     return None

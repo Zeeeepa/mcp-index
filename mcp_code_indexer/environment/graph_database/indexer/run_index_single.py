@@ -5,10 +5,10 @@ import uuid
 
 import my_client as my_client
 import shallow_indexer
-from my_graph_db import GraphDatabaseHandler
+from mcp_code_indexer.environment.graph_database.graph_database import GraphDatabaseHandler
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__))))
-# 确保依赖项在系统的 PATH 环境变量中
+# Ensure dependencies are in the system's PATH environment variable
 os.environ['PATH'] = os.path.dirname(
     os.path.abspath(__file__)) + ';' + os.environ['PATH']
 
@@ -21,6 +21,16 @@ def indexSourceFile(
     rootPath,
     shallow,
 ):
+    """Index a source file.
+    
+    Args:
+        sourceFilePath (str): Path to the source file.
+        environmentPath (str): Path to the Python environment.
+        workingDirectory (str): Working directory.
+        graph_db (GraphDatabaseHandler): Graph database handler.
+        rootPath (str): Root path of the project.
+        shallow (bool): Whether to use shallow indexing.
+    """
     astVisitorClient = my_client.AstVisitorClient(
         graph_db, task_root_path=rootPath)
 
@@ -47,6 +57,16 @@ def run_single(
     srctrl_clear=False,
     shallow=True,
 ):
+    """Run indexing for a single file.
+    
+    Args:
+        graph_db (GraphDatabaseHandler): Graph database handler.
+        environmentPath (str, optional): Path to the Python environment. Defaults to ''.
+        sourceFilePath (str, optional): Path to the source file. Defaults to ''.
+        root_path (str, optional): Root path of the project. Defaults to ''.
+        srctrl_clear (bool, optional): Whether to clear the database. Defaults to False.
+        shallow (bool, optional): Whether to use shallow indexing. Defaults to True.
+    """
     workingDirectory = os.getcwd()
     indexSourceFile(
         sourceFilePath,
@@ -59,7 +79,7 @@ def run_single(
 
 
 def run():
-    # task_id = 'test_sh'
+    """Run the indexer with command line arguments."""
     parser = argparse.ArgumentParser(
         description=
         'Python source code indexer that generates a Sourcetrail compatible database.'
