@@ -16,6 +16,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 from .code_optimizer import CodeOptimizer
 from .code_compressor import CodeCompressor, NormalizationLevel
+from .utils.language_utils import get_language_from_extension
+from .utils.error_utils import ContextError, safe_execute
 
 logger = logging.getLogger(__name__)
 
@@ -220,8 +222,7 @@ class ContextManager:
                 content = f.read()
                 
             # 获取文件语言
-            ext = os.path.splitext(file_path)[1].lower()
-            language = self._get_language(ext)
+            language = get_language_from_extension(file_path)
             
             # 分析代码
             analysis = self.optimizer.analyze_code(content, file_path, language)
@@ -274,7 +275,10 @@ class ContextManager:
             
         except Exception as e:
             logger.error(f"获取上下文失败 {file_path}:{line_number}: {str(e)}")
-            return None
+            raise ContextError(f"Failed to get context for {file_path}:{line_number}", {
+                "file_path": file_path,
+                "line_number": line_number
+            })
     
     def get_module_context(self, file_path: str,
                           priority: ContextPriority = ContextPriority.NORMAL) -> Optional[str]:
@@ -288,63 +292,62 @@ class ContextManager:
         Returns:
             上下文内容
         """
-        try:
-            # 查找缓存
-            context_item = self.cache.get(file_path, 1, -1)
-            if context_item:
-                return context_item.content
-                
-            # 读取文件内容
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-                
-            # 获取文件语言
-            ext = os.path.splitext(file_path)[1].lower()
-            language = self._get_language(ext)
+        return safe_execute(
+            self._get_module_context_impl,
+            file_path,
+            priority,
+            component="ContextManager"
+        )
+    
+    def _get_module_context_impl(self, file_path: str,
+                               priority: ContextPriority = ContextPriority.NORMAL) -> Optional[str]:
+        """
+        获取模块级上下文的实现
+        
+        Args:
+            file_path: 文件路径
+            priority: 上下文优先级
             
-            # 分析代码
-            analysis = self.optimizer.analyze_code(content, file_path, language)
-            
-            # 创建新的上下文项
-            context_item = ContextItem(
-                content=content,
-                context_type=ContextType.MODULE,
-                priority=priority,
-                file_path=file_path,
-                start_line=1,
-                end_line=len(content.splitlines()),
-                last_used=time.time(),
-                access_count=1,
-                dependencies=set()
-            )
-            
-            # 根据优先级决定是否压缩
-            if priority in [ContextPriority.LOW, ContextPriority.BACKGROUND]:
-                context_item.content = self.compressor.compress(
-                    context_item.content,
-                    language
-                )
-                context_item.compressed = True
-                
-            # 缓存上下文
-            self.cache.put(context_item)
-            
+        Returns:
+            上下文内容
+        """
+        # 查找缓存
+        context_item = self.cache.get(file_path, 1, -1)
+        if context_item:
             return context_item.content
             
-        except Exception as e:
-            logger.error(f"获取模块上下文失败 {file_path}: {str(e)}")
-            return None
-    
-    def _get_language(self, ext: str) -> str:
-        """获取文件语言"""
-        language_map = {
-            '.py': 'python',
-            '.js': 'javascript',
-            '.ts': 'typescript',
-            '.jsx': 'javascript',
-            '.tsx': 'typescript',
-            '.vue': 'vue',
-            '.php': 'php',
-            '.rs': 'rust'
-        }
-        return language_map.get(ext, 'text')
+        # 读取文件内容
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+        # 获取文件语言
+        language = get_language_from_extension(file_path)
+        
+        # 分析代码
+        analysis = self.optimizer.analyze_code(content, file_path, language)
+        
+        # 创建新的上下文项
+        context_item = ContextItem(
+            content=content,
+            context_type=ContextType.MODULE,
+            priority=priority,
+            file_path=file_path,
+            start_line=1,
+            end_line=len(content.splitlines()),
+            last_used=time.time(),
+            access_count=1,
+            dependencies=set()
+        )
+        
+        # 根据优先级决定是否压缩
+        if priority in [ContextPriority.LOW, ContextPriority.BACKGROUND]:
+            context_item.content = self.compressor.compress(
+                context_item.content,
+                language
+            )
+            context_item.compressed = True
+            
+        # 缓存上下文
+        self.cache.put(context_item)
+        
+        return context_item.content

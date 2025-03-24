@@ -9,9 +9,13 @@ from typing import List, Dict, Any, Optional
 import logging
 from datetime import datetime
 
+from .utils.language_utils import get_language_from_extension
+from .utils.error_utils import safe_execute
+from .interfaces import FormatterProtocol
+
 logger = logging.getLogger(__name__)
 
-class McpFormatter:
+class McpFormatter(FormatterProtocol):
     """
     MCP响应格式化器类
     
@@ -73,40 +77,56 @@ class McpFormatter:
         Returns:
             格式化后的代码块字典，如果格式化失败则返回None
         """
-        try:
-            # 提取基本信息
-            file_path = result.get('file_path', '')
-            content = result.get('content', '')
-            start_line = result.get('start_line', 1)
-            end_line = result.get('end_line', 1)
-            language = result.get('language', 'text')
-            similarity = result.get('similarity', 0.0)
+        return safe_execute(
+            self._format_code_block_impl,
+            result,
+            confidence_threshold,
+            component="McpFormatter",
+            default_return=None
+        )
+    
+    def _format_code_block_impl(self, result: Dict[str, Any], 
+                               confidence_threshold: float) -> Dict[str, Any]:
+        """
+        格式化单个代码块的实现
+        
+        Args:
+            result: 代码块搜索结果
+            confidence_threshold: 置信度阈值
             
-            # 计算置信度
-            confidence = similarity
-            low_confidence = confidence < confidence_threshold
-            
-            # 创建代码块字典
-            code_block = {
-                "id": self._generate_block_id(file_path, start_line, end_line),
-                "file_path": file_path,
-                "file_name": os.path.basename(file_path),
-                "language": language,
-                "start_line": start_line,
-                "end_line": end_line,
-                "content": content,
-                "confidence": confidence,
-                "low_confidence": low_confidence,
-                "metadata": {
-                    "similarity": similarity,
-                    "type": result.get('type', 'code')
-                }
+        Returns:
+            格式化后的代码块字典
+        """
+        # 提取基本信息
+        file_path = result.get('file_path', '')
+        content = result.get('content', '')
+        start_line = result.get('start_line', 1)
+        end_line = result.get('end_line', 1)
+        language = result.get('language', get_language_from_extension(file_path))
+        similarity = result.get('similarity', 0.0)
+        
+        # 计算置信度
+        confidence = similarity
+        low_confidence = confidence < confidence_threshold
+        
+        # 创建代码块字典
+        code_block = {
+            "id": self._generate_block_id(file_path, start_line, end_line),
+            "file_path": file_path,
+            "file_name": os.path.basename(file_path),
+            "language": language,
+            "start_line": start_line,
+            "end_line": end_line,
+            "content": content,
+            "confidence": confidence,
+            "low_confidence": low_confidence,
+            "metadata": {
+                "similarity": similarity,
+                "type": result.get('type', 'code')
             }
-            
-            return code_block
-        except Exception as e:
-            logger.error(f"格式化代码块失败: {str(e)}")
-            return None
+        }
+        
+        return code_block
     
     def _generate_block_id(self, file_path: str, start_line: int, end_line: int) -> str:
         """
@@ -189,7 +209,7 @@ class McpFormatter:
             "end_line": code_context.get('end_line', 1),
             "target_line": code_context.get('target_line', 1),
             "content": code_context.get('content', ''),
-            "language": self._guess_language(code_context.get('file_path', ''))
+            "language": get_language_from_extension(code_context.get('file_path', ''))
         }
         
         # 格式化相关代码块
@@ -210,50 +230,6 @@ class McpFormatter:
         }
         
         return response
-    
-    def _guess_language(self, file_path: str) -> str:
-        """
-        根据文件扩展名猜测编程语言
-        
-        Args:
-            file_path: 文件路径
-            
-        Returns:
-            编程语言字符串
-        """
-        ext_to_lang = {
-            ".py": "python",
-            ".js": "javascript",
-            ".ts": "typescript",
-            ".jsx": "javascript",
-            ".tsx": "typescript",
-            ".java": "java",
-            ".c": "c",
-            ".cpp": "cpp",
-            ".h": "c",
-            ".hpp": "cpp",
-            ".cs": "csharp",
-            ".go": "go",
-            ".rb": "ruby",
-            ".php": "php",
-            ".swift": "swift",
-            ".kt": "kotlin",
-            ".rs": "rust",
-            ".sh": "bash",
-            ".html": "html",
-            ".css": "css",
-            ".scss": "scss",
-            ".sql": "sql",
-            ".md": "markdown",
-            ".json": "json",
-            ".xml": "xml",
-            ".yaml": "yaml",
-            ".yml": "yaml",
-            ".toml": "toml"
-        }
-        
-        _, ext = os.path.splitext(file_path.lower())
-        return ext_to_lang.get(ext, "text")
     
     def format_error(self, error_message: str, query: str = None) -> Dict[str, Any]:
         """
