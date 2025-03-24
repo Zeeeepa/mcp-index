@@ -3,8 +3,8 @@ import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from modelscope_agent.environment.graph_database import GraphDatabaseHandler
-from modelscope_agent.environment.graph_database.ast_search import AstManager
+from mcp_code_indexer.environment.graph_database.internal_graph_database import GraphDatabaseHandler
+from mcp_code_indexer.environment.graph_database.ast_search.internal_ast_manager import AstManager
 
 
 def get_py_files(directory):
